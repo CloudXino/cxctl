@@ -329,3 +329,61 @@ func writeFile(t *testing.T, content string) string {
 	}
 	return p
 }
+
+func TestReservedIP(t *testing.T) {
+	f := newFakeAPI(t)
+	f.put("mc2", map[string]any{"id": "srv-a", "name": "web-1", "status": "running", "region": "chittagong-1"})
+	f.put("mc2", map[string]any{"id": "srv-b", "name": "web-2", "status": "running", "region": "chittagong-1"})
+
+	// --server takes a name and the server's region
+	out := mustRun(t, f, "reserved-ip", "create", "--server", "web-1", "--project", "Staging")
+	contains(t, out, "assigned", "web-1", "chittagong-1")
+	rip := f.list("reserved-ips")[0]
+	addr := rip["ip_address"].(string)
+	if rip["project_id"] != "p2" || rip["server_id"] != "srv-a" {
+		t.Errorf("created %v", rip)
+	}
+
+	contains(t, mustRun(t, f, "reserved-ip", "list"), "ADDRESS", addr, "web-1")
+	if got := strings.TrimSpace(mustRun(t, f, "rip", "list", "--ip", addr, "-o", "id")); got != rip["id"] {
+		t.Errorf("list --ip -o id = %q", got)
+	}
+
+	// named by address; assign moves it
+	contains(t, mustRun(t, f, "reserved-ip", "assign", addr, "web-2"), "web-2", "srv-b")
+	if rip["server_id"] != "srv-b" {
+		t.Errorf("not moved: %v", rip)
+	}
+	contains(t, mustRun(t, f, "reserved-ip", "get", rip["id"].(string)), addr, "web-2")
+	contains(t, mustRun(t, f, "reserved-ip", "unassign", addr), "available")
+	if rip["server_id"] != nil {
+		t.Errorf("still assigned: %v", rip)
+	}
+
+	// delete asks first; with no terminal it stops
+	if r := run(t, f, "", "reserved-ip", "delete", addr); r.code == 0 || len(f.list("reserved-ips")) != 1 {
+		t.Fatalf("deleted without --yes: %+v", r)
+	}
+	r := run(t, f, "", "reserved-ip", "delete", addr, "--yes")
+	if r.code != 0 || len(f.list("reserved-ips")) != 0 {
+		t.Fatalf("delete: %+v", r)
+	}
+	contains(t, r.err+r.out, "Deleted reserved IP "+addr)
+
+	if r := run(t, f, "", "reserved-ip", "get", "192.0.2.1"); r.code != 1 || !strings.Contains(r.err, `no reserved IP with ID or name "192.0.2.1"`) {
+		t.Errorf("unknown address: %+v", r)
+	}
+}
+
+func TestReservedIPUnavailable(t *testing.T) {
+	f := newFakeAPI(t)
+	f.ripsOff = true
+	r := run(t, f, "", "reserved-ip", "create", "--region", "dhaka-1")
+	if r.code != 1 || !strings.Contains(r.err, "Reserved IPs are not available right now (unavailable)") {
+		t.Fatalf("create: %+v", r)
+	}
+	if n := len(f.requests("POST /v1/reserved-ips")); n != 1 {
+		t.Errorf("sent %d times; 503 unavailable must not be retried", n)
+	}
+	contains(t, mustRun(t, f, "reserved-ip", "--help"), "create", "assign", "unassign", "billed per hour")
+}

@@ -14,14 +14,15 @@ import (
 // fakeAPI is an in-memory CloudXino API with just enough behaviour for the CLI: resources by kind,
 // servers that finish creating / deleting on the second look, and a log of the requests made.
 type fakeAPI struct {
-	mu    sync.Mutex
-	seq   int
-	store map[string]map[string]map[string]any // kind -> id -> object
-	order map[string][]string                  // kind -> ids in creation order
-	polls map[string]int
-	log   []string // "METHOD /path"
-	srv   *httptest.Server
-	token string // the key requests must carry
+	mu      sync.Mutex
+	seq     int
+	store   map[string]map[string]map[string]any // kind -> id -> object
+	order   map[string][]string                  // kind -> ids in creation order
+	polls   map[string]int
+	log     []string // "METHOD /path"
+	srv     *httptest.Server
+	token   string // the key requests must carry
+	ripsOff bool
 }
 
 func newFakeAPI(t *testing.T) *fakeAPI {
@@ -129,6 +130,51 @@ func (f *fakeAPI) serve(w http.ResponseWriter, r *http.Request) {
 		}
 		lb["target_ids"] = ids
 		reply(w, 200, lb)
+	case p[0] == "reserved-ips":
+		f.reservedIPs(w, r, p, body)
+	default:
+		f.crud(w, r, p[0], p[1:], body)
+	}
+}
+
+// reservedIPs: f.ripsOff makes every create answer 503 unavailable, as when no address is free.
+func (f *fakeAPI) reservedIPs(w http.ResponseWriter, r *http.Request, p []string, body map[string]any) {
+	point := func(rip map[string]any, serverID any) {
+		srv := f.store["mc2"][serverID.(string)]
+		rip["server_id"], rip["target_id"], rip["target_type"], rip["assigned_to"], rip["status"] = serverID, serverID, "mc2", srv["name"], "assigned"
+	}
+	switch {
+	case len(p) == 1 && r.Method == "GET":
+		out := []map[string]any{}
+		for _, rip := range f.list("reserved-ips") {
+			if a := r.URL.Query().Get("ip_address"); a == "" || rip["ip_address"] == a {
+				out = append(out, rip)
+			}
+		}
+		reply(w, 200, out)
+	case len(p) == 1 && r.Method == "POST":
+		if f.ripsOff {
+			reply(w, 503, map[string]any{"detail": "Reserved IPs are not available right now", "code": "unavailable"})
+			return
+		}
+		region, _ := body["region"].(string)
+		if region == "" {
+			region = "dhaka-1"
+		}
+		rip := f.put("reserved-ips", map[string]any{"ip_address": fmt.Sprintf("198.51.100.%d", f.seq+1), "region": region,
+			"project_id": body["project_id"], "status": "available"})
+		if body["server_id"] != nil {
+			point(rip, body["server_id"])
+		}
+		reply(w, 201, rip)
+	case len(p) == 3 && p[2] == "assign":
+		rip := f.store["reserved-ips"][p[1]]
+		point(rip, body["server_id"])
+		reply(w, 200, rip)
+	case len(p) == 3 && p[2] == "unassign":
+		rip := f.store["reserved-ips"][p[1]]
+		rip["server_id"], rip["target_id"], rip["target_type"], rip["assigned_to"], rip["status"] = nil, nil, nil, nil, "available"
+		reply(w, 200, rip)
 	default:
 		f.crud(w, r, p[0], p[1:], body)
 	}
