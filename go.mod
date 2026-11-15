@@ -3,7 +3,7 @@ module github.com/cloudxino/cxctl
 go 1.22
 
 require (
-	github.com/cloudxino/cloudxino-go v0.1.0
+	github.com/cloudxino/cloudxino-go v0.1.1-0.20261115104318-075a690689ce
 	github.com/spf13/cobra v1.8.1
 )
 
