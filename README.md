@@ -44,7 +44,7 @@ The key's role limits what cxctl can do: a `viewer` key can only read. Servers a
 | `cxctl lb list \| get \| create \| update \| delete \| add-target \| remove-target` | load balancers |
 | `cxctl dns zone list \| get \| create \| delete \| export \| import` | hosted DNS zones (BIND files for export and import) |
 | `cxctl dns record list \| create \| update \| delete` | records in a zone |
-| `cxctl reserved-ip list \| get \| create \| assign \| unassign \| delete` | reserved IPs: public IPv4 addresses the team keeps and points at a server; `assign` also moves one |
+| `cxctl reserved-ip list \| get \| create \| assign \| unassign \| delete` | reserved IPs: public IPv4 addresses the team keeps and points at a server, a load balancer (`--load-balancer`) or a Kubernetes LoadBalancer Service (`--cks-load-balancer`); `assign` also moves one |
 | `cxctl ssh-key list \| get \| add \| rename \| delete` | saved SSH public keys |
 | `cxctl project list \| get`, `cxctl account` | projects; the team and role of the key |
 
