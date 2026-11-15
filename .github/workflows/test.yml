@@ -1,0 +1,28 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+      - name: gofmt
+        run: test -z "$(gofmt -l .)"
+      # runs every command against an in-memory fake API; nothing real is touched
+      - run: go test -race ./...
+      - name: builds for every release platform
+        run: |
+          for target in linux/amd64 linux/arm64 darwin/arm64 windows/amd64 freebsd/amd64; do
+            GOOS=${target%/*} GOARCH=${target#*/} go build -o /dev/null . || exit 1
+          done
