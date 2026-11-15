@@ -44,12 +44,13 @@ The key's role limits what cxctl can do: a `viewer` key can only read. Servers a
 | `cxctl lb list \| get \| create \| update \| delete \| add-target \| remove-target` | load balancers |
 | `cxctl dns zone list \| get \| create \| delete \| export \| import` | hosted DNS zones (BIND files for export and import) |
 | `cxctl dns record list \| create \| update \| delete` | records in a zone |
+| `cxctl reserved-ip list \| get \| create \| assign \| unassign \| delete` | reserved IPs: public IPv4 addresses the team keeps and points at a server; `assign` also moves one |
 | `cxctl ssh-key list \| get \| add \| rename \| delete` | saved SSH public keys |
 | `cxctl project list \| get`, `cxctl account` | projects; the team and role of the key |
 
 `cxctl COMMAND --help` shows the flags and examples for each command.
 
-Resources can be named by ID or by name: `cxctl server get web-1`. When two resources share a name, cxctl lists their IDs and asks for one. SSH keys can also be named by fingerprint.
+Resources can be named by ID or by name: `cxctl server get web-1`. When two resources share a name, cxctl lists their IDs and asks for one. SSH keys can also be named by fingerprint, reserved IPs by address: `cxctl reserved-ip assign 203.0.113.10 web-2`.
 
 ### Rules
 
