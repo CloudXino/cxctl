@@ -360,6 +360,23 @@ func TestReservedIP(t *testing.T) {
 		t.Errorf("still assigned: %v", rip)
 	}
 
+	// load balancer and Kubernetes Service targets; exactly one target
+	mustRun(t, f, "lb", "create", "--name", "edge", "--rule", "http:80:8080")
+	contains(t, mustRun(t, f, "reserved-ip", "assign", addr, "--load-balancer", "edge"), "edge", "load balancer")
+	if rip["target_type"] != "load_balancer" || rip["server_id"] != nil {
+		t.Errorf("not on the load balancer: %v", rip)
+	}
+	contains(t, mustRun(t, f, "reserved-ip", "assign", addr, "--cks-load-balancer", "cks-1"), "prod: traefik/traefik", "Kubernetes LoadBalancer Service")
+	if rip["cks_load_balancer_id"] != "cks-1" {
+		t.Errorf("not on the CKS Service: %v", rip)
+	}
+	for _, bad := range [][]string{{addr}, {addr, "web-2", "--load-balancer", "edge"}} {
+		if r := run(t, f, "", append([]string{"reserved-ip", "assign"}, bad...)...); r.code == 0 || !strings.Contains(r.err, "exactly one target") {
+			t.Errorf("assign %v: %+v", bad, r)
+		}
+	}
+	mustRun(t, f, "reserved-ip", "unassign", addr)
+
 	// delete asks first; with no terminal it stops
 	if r := run(t, f, "", "reserved-ip", "delete", addr); r.code == 0 || len(f.list("reserved-ips")) != 1 {
 		t.Fatalf("deleted without --yes: %+v", r)

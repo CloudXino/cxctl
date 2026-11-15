@@ -169,7 +169,18 @@ func (f *fakeAPI) reservedIPs(w http.ResponseWriter, r *http.Request, p []string
 		reply(w, 201, rip)
 	case len(p) == 3 && p[2] == "assign":
 		rip := f.store["reserved-ips"][p[1]]
-		point(rip, body["server_id"])
+		switch {
+		case body["load_balancer_id"] != nil:
+			id := body["load_balancer_id"]
+			rip["server_id"], rip["load_balancer_id"], rip["target_id"], rip["target_type"], rip["status"] = nil, id, id, "load_balancer", "assigned"
+			rip["assigned_to"] = f.store["load-balancers"][id.(string)]["name"]
+		case body["cks_load_balancer_id"] != nil:
+			id := body["cks_load_balancer_id"]
+			rip["server_id"], rip["cks_load_balancer_id"], rip["target_id"], rip["target_type"], rip["status"] = nil, id, id, "cks_lb", "assigned"
+			rip["assigned_to"] = "prod: traefik/traefik"
+		default:
+			point(rip, body["server_id"])
+		}
 		reply(w, 200, rip)
 	case len(p) == 3 && p[2] == "unassign":
 		rip := f.store["reserved-ips"][p[1]]
