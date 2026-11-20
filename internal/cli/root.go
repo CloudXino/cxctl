@@ -63,7 +63,7 @@ func Main(version string, args []string, in io.Reader, out, errOut io.Writer) in
 func (a *app) rootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:   "cxctl",
-		Short: "Manage CloudXino servers, firewalls, load balancers, reserved IPs, DNS and SSH keys",
+		Short: "Manage CloudXino servers, firewalls, load balancers, reserved IPs, container hosts, DNS and SSH keys",
 		Long: `cxctl manages CloudXino resources from the command line.
 
 Log in once with an API key (Account → API keys in the console):
@@ -92,6 +92,7 @@ or set CLOUDXINO_TOKEN. Most commands take -o json for scripts.`,
 		a.loadBalancerCmd(),
 		a.dnsCmd(),
 		a.reservedIPCmd(),
+		a.containersCmd(),
 		a.sshKeyCmd(),
 		a.projectCmd(),
 	)

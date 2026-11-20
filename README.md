@@ -1,6 +1,6 @@
 # cxctl
 
-`cxctl` is the command-line tool for [CloudXino](https://cloudxino.com). Use it to manage CC2 servers, Cloud Firewalls, load balancers, hosted DNS and SSH keys. It is built on the [CloudXino Go SDK](https://github.com/cloudxino/cloudxino-go).
+`cxctl` is the command-line tool for [CloudXino](https://cloudxino.com). Use it to manage CC2 servers, Cloud Firewalls, load balancers, reserved IPs, container hosts, hosted DNS and SSH keys. It is built on the [CloudXino Go SDK](https://github.com/cloudxino/cloudxino-go).
 
 ```console
 $ cxctl auth login
@@ -45,12 +45,39 @@ The key's role limits what cxctl can do: a `viewer` key can only read. Servers a
 | `cxctl dns zone list \| get \| create \| delete \| export \| import` | hosted DNS zones (BIND files for export and import) |
 | `cxctl dns record list \| create \| update \| delete` | records in a zone |
 | `cxctl reserved-ip list \| get \| create \| assign \| unassign \| delete` | reserved IPs: public IPv4 addresses the team keeps and points at a server, a load balancer (`--load-balancer`) or a Kubernetes LoadBalancer Service (`--cks-load-balancer`); `assign` also moves one |
+| `cxctl containers list \| get \| create \| delete \| retry \| credentials \| status` | container hosts (Managed Container Service): servers with Docker, Compose, Traefik and Portainer; `create --wait` waits until ready |
+| `cxctl containers deploy HOST -f docker-compose.yml [--env-file .env] [--wait]` | deploy a compose file; `--wait` follows the output and fails when the deployment fails |
+| `cxctl containers deployments \| redeploy` | the deployment history; `redeploy HOST 3` rolls back to deployment #3 |
+| `cxctl containers env get \| set \| unset` | environment variables (`set HOST NAME=value`, `--from-file .env`); changes deploy unless `--no-deploy` |
+| `cxctl containers domains list \| add \| remove` | HTTPS domains routed to a service's port, with DNS and certificate state |
+| `cxctl containers logs \| restart \| stop \| start HOST CONTAINER` | a container's log and power; CONTAINER is its name or its compose service |
+| `cxctl containers plans`, `cxctl containers plan HOST PLAN` | plans with monthly prices; move a host to another plan (resizes its server) |
 | `cxctl ssh-key list \| get \| add \| rename \| delete` | saved SSH public keys |
 | `cxctl project list \| get`, `cxctl account` | projects; the team and role of the key |
 
 `cxctl COMMAND --help` shows the flags and examples for each command.
 
 Resources can be named by ID or by name: `cxctl server get web-1`. When two resources share a name, cxctl lists their IDs and asks for one. SSH keys can also be named by fingerprint, reserved IPs by address: `cxctl reserved-ip assign 203.0.113.10 web-2`.
+
+### Deploying containers from CI
+
+A container host runs a `docker-compose.yml` for you, with environment variables and HTTPS
+domains. Create it once, then deploy from your pipeline:
+
+```sh
+cxctl containers create --name apps --plan s-2vcpu-4gb --wait
+cxctl containers domains add apps app.example.com --service web --port 8080 --no-deploy
+```
+
+```yaml
+# .github/workflows/deploy.yml
+- run: cxctl containers deploy apps -f docker-compose.yml --note "$GITHUB_SHA" --wait
+  env:
+    CLOUDXINO_TOKEN: ${{ secrets.CLOUDXINO_TOKEN }}
+```
+
+`--wait` prints the compose output as it comes (on standard error) and exits with 1 when the
+deployment fails. `cxctl containers redeploy apps 3` goes back to deployment #3.
 
 ### Rules
 

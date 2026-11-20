@@ -23,11 +23,12 @@ type fakeAPI struct {
 	srv     *httptest.Server
 	token   string // the key requests must carry
 	ripsOff bool
+	mcs     *fakeMCS // container hosts (fake_containers_test.go)
 }
 
 func newFakeAPI(t *testing.T) *fakeAPI {
 	t.Helper()
-	f := &fakeAPI{store: map[string]map[string]map[string]any{}, order: map[string][]string{}, polls: map[string]int{}, token: "cxk_test"}
+	f := &fakeAPI{store: map[string]map[string]map[string]any{}, order: map[string][]string{}, polls: map[string]int{}, token: "cxk_test", mcs: newFakeMCS()}
 	f.srv = httptest.NewServer(http.HandlerFunc(f.serve))
 	t.Cleanup(f.srv.Close)
 	t.Setenv("CLOUDXINO_TOKEN", "")
@@ -132,6 +133,8 @@ func (f *fakeAPI) serve(w http.ResponseWriter, r *http.Request) {
 		reply(w, 200, lb)
 	case p[0] == "reserved-ips":
 		f.reservedIPs(w, r, p, body)
+	case p[0] == "container-hosts":
+		f.containerHosts(w, r, p, body)
 	default:
 		f.crud(w, r, p[0], p[1:], body)
 	}
