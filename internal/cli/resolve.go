@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"golang.org/x/term"
 )
 
 // pick finds the one item whose ID or name is ref. Every command that takes a resource accepts
@@ -66,4 +68,20 @@ func readLine(in io.Reader) (string, error) {
 		return "", err
 	}
 	return strings.TrimSpace(line), nil
+}
+
+// readSecret reads an API key or a password. On a terminal it prompts on errOut and does not
+// echo what is typed, so the secret stays off the screen and out of the scrollback; piped input
+// is read like readLine.
+func readSecret(in io.Reader, errOut io.Writer, prompt string) (string, error) {
+	if f, ok := in.(*os.File); ok && term.IsTerminal(int(f.Fd())) {
+		fmt.Fprint(errOut, prompt)
+		b, err := term.ReadPassword(int(f.Fd()))
+		fmt.Fprintln(errOut)
+		if err != nil {
+			return "", err
+		}
+		return strings.TrimSpace(string(b)), nil
+	}
+	return readLine(in)
 }

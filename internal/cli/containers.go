@@ -105,6 +105,14 @@ func (a *app) printHost(v *cloudxino.ContainerHost) error {
 	return a.printObject(v.Id, fields, v)
 }
 
+// plural is "1 domain", "2 domains".
+func plural(n int, noun string) string {
+	if n == 1 {
+		return "1 " + noun
+	}
+	return strconv.Itoa(n) + " " + noun + "s"
+}
+
 // num prints a number without trailing zeros (2, 2.5).
 func num(v float64) string { return strconv.FormatFloat(v, 'f', -1, 64) }
 
@@ -347,14 +355,20 @@ func (a *app) findContainer(ctx context.Context, hostID, ref string) (string, er
 	if err != nil {
 		return "", err
 	}
-	byService := []string{}
+	// the app's services first: a compose service of the customer's own may also be called traefik
+	byService, bySystemService := []string{}, []string{}
 	for _, ct := range st.Containers {
 		if ct.Name == ref {
 			return ref, nil
 		}
-		if ct.Service == ref && !ct.System {
+		if ct.Service == ref && ct.System {
+			bySystemService = append(bySystemService, ct.Name)
+		} else if ct.Service == ref {
 			byService = append(byService, ct.Name)
 		}
+	}
+	if len(byService) == 0 {
+		byService = bySystemService
 	}
 	switch len(byService) {
 	case 1:
@@ -828,7 +842,7 @@ func (a *app) saveEnv(cmd *cobra.Command, host string, d deployFlags, change fun
 		return err
 	}
 	if d.noDeploy {
-		a.done("Saved %d environment variables on %s; they take effect with the next deployment.", len(res.EnvKeys), h.Name)
+		a.done("Saved %s on %s; they take effect with the next deployment.", plural(len(res.EnvKeys), "environment variable"), h.Name)
 		return nil
 	}
 	return a.finishDeploy(ctx, h.Id, res.Deployment, d.wait, d.timeout)
@@ -975,7 +989,7 @@ func (a *app) saveDomains(cmd *cobra.Command, h cloudxino.ContainerHost, domains
 		return err
 	}
 	if d.noDeploy {
-		a.done("Saved %d domains on %s; they take effect with the next deployment.", len(res.Domains), h.Name)
+		a.done("Saved %s on %s; they take effect with the next deployment.", plural(len(res.Domains), "domain"), h.Name)
 		return nil
 	}
 	return a.finishDeploy(ctx, h.Id, res.Deployment, d.wait, d.timeout)

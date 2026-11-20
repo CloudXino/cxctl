@@ -132,7 +132,7 @@ func TestContainersEnv(t *testing.T) {
 		t.Errorf("env get B = %q", got)
 	}
 
-	contains(t, mustRun(t, f, "containers", "env", "unset", "apps", "A", "--no-deploy"), "take effect with the next deployment")
+	contains(t, mustRun(t, f, "containers", "env", "unset", "apps", "A", "--no-deploy"), "Saved 2 environment variables on apps; they take effect")
 	if _, ok := f.mcs.env[id]["A"]; ok || len(f.mcs.deployments[id]) != 2 {
 		t.Errorf("env %v, %d deployments", f.mcs.env[id], len(f.mcs.deployments[id]))
 	}
@@ -167,7 +167,7 @@ func TestContainersDomains(t *testing.T) {
 		t.Fatalf("domains %v", ds)
 	}
 
-	mustRun(t, f, "containers", "domains", "remove", "apps", "api.example.com", "--no-deploy")
+	contains(t, mustRun(t, f, "containers", "domains", "remove", "apps", "api.example.com", "--no-deploy"), "Saved 1 domain on apps;")
 	ds := f.store["container-hosts"][id]["domains"].([]any)
 	if len(ds) != 1 || ds[0].(map[string]any)["port"] != 8081.0 {
 		t.Fatalf("domains %v", ds)
@@ -198,9 +198,11 @@ func TestContainersLogsAndActions(t *testing.T) {
 	if got := strings.Join(f.mcs.actions, ";"); got != "restart app-web-1;stop app-web-1;start app-web-1" {
 		t.Errorf("actions %s", got)
 	}
+	// the host's own Traefik by its compose service name, as on a real host (cloudxino-traefik-1)
 	if r := run(t, f, "", "containers", "stop", "apps", "traefik"); r.code != 1 || !strings.Contains(r.err, "restart it instead. (conflict)") {
 		t.Errorf("stop traefik: %+v", r)
 	}
+	contains(t, mustRun(t, f, "containers", "restart", "apps", "traefik"), "restart cloudxino-traefik-1: done")
 	if r := run(t, f, "", "containers", "logs", "apps", "db"); r.code != 1 || !strings.Contains(r.err, `no container or compose service named "db"`) {
 		t.Errorf("logs db: %+v", r)
 	}
@@ -241,6 +243,15 @@ func TestContainersNotReady(t *testing.T) {
 	// domains list falls back to what is saved
 	contains(t, mustRun(t, f, "containers", "domains", "list", "apps"), "DOMAIN")
 	contains(t, mustRun(t, f, "containers", "--help"), "deploy", "domains", "env", "billed per hour")
+}
+
+func TestPlural(t *testing.T) {
+	if got := plural(1, "domain"); got != "1 domain" {
+		t.Errorf("%q", got)
+	}
+	if got := plural(0, "domain"); got != "0 domains" {
+		t.Errorf("%q", got)
+	}
 }
 
 func TestNewOutput(t *testing.T) {
