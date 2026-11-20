@@ -152,7 +152,7 @@ func (a *app) serverCreateCmd() *cobra.Command {
 				req.LoginMethod = &v
 			}
 			if passwordStdin {
-				pw, err := readLine(a.in)
+				pw, err := readSecret(a.in, a.errOut, "Root password (not shown): ")
 				if err != nil {
 					return err
 				}

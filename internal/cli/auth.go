@@ -26,7 +26,8 @@ func (a *app) authLoginCmd() *cobra.Command {
 		Short: "Save an API key as a named login and make it current",
 		Long: `Save an API key (Account → API keys in the console) and make it the current login.
 
-The key is read from standard input, so it does not end up in your shell history:
+The key is read from standard input, so it does not end up in your shell history, and it is
+not shown as you type or paste it:
 
   cxctl auth login --name work
   echo "$KEY" | cxctl auth login --name ci
@@ -36,13 +37,8 @@ The key is checked against the API before it is saved.`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			token := a.token
 			if token == "" {
-				if f, ok := a.in.(*os.File); ok {
-					if st, err := f.Stat(); err == nil && st.Mode()&os.ModeCharDevice != 0 {
-						fmt.Fprint(a.errOut, "API key: ")
-					}
-				}
 				var err error
-				if token, err = readLine(a.in); err != nil {
+				if token, err = readSecret(a.in, a.errOut, "API key (not shown as you type): "); err != nil {
 					return err
 				}
 			}

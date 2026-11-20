@@ -147,7 +147,7 @@ func (f *fakeAPI) containerHosts(w http.ResponseWriter, r *http.Request, p []str
 			"containers": []map[string]any{
 				{"id": "a1", "name": "app-web-1", "image": "nginx", "state": "running", "status": "Up 1 hour", "service": "web", "system": false,
 					"stats": map[string]any{"cpu": "0.10%", "memory": "12MiB / 2GiB"}},
-				{"id": "a2", "name": "traefik", "image": "traefik:v3.6", "state": "running", "status": "Up 2 hours", "service": "traefik", "system": true},
+				{"id": "a2", "name": "cloudxino-traefik-1", "image": "traefik:v3.6", "state": "running", "status": "Up 2 hours", "service": "traefik", "system": true},
 			},
 			"disk": map[string]any{"total": 50, "used": 10, "free": 40}, "certificates": []string{}, "domains": domains,
 		})
@@ -161,7 +161,7 @@ func (f *fakeAPI) containerHosts(w http.ResponseWriter, r *http.Request, p []str
 		if !ready() {
 			return
 		}
-		if p[3] == "traefik" && body["action"] == "stop" {
+		if p[3] == "cloudxino-traefik-1" && body["action"] == "stop" {
 			reply(w, 409, map[string]any{"detail": "This container runs the reverse proxy or Portainer; restart it instead.", "code": "conflict"})
 			return
 		}
